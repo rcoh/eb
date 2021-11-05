@@ -22,7 +22,7 @@ struct Wordlist {
     words: Vec<String>
 }
 
-const TODAY: &str = include_str!("../word-lists/today");
+const TODAY: &str = include_str!("../word-lists/today.json");
 
 struct SpellingBee {
     // `ComponentLink` is like a reference to a component.
