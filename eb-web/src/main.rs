@@ -141,6 +141,8 @@ impl Component for SpellingBee {
             .map(|ch| {
                 if ch == self.center {
                     html! { <span class="sb-input-bright"> { ch } </span> }
+                } else if  !self.letters.contains(&ch) {
+                        html! { <span class="sb-input-extra"> { ch } </span> }
                 } else {
                     html! { <span> { ch } </span> }
                 }
