@@ -183,6 +183,10 @@ impl Component for SpellingBee {
                             {{ letters }}
                         </div>
                     </div>
+                    <div class="hive-actions">
+                        <div onclick=self.link.callback(|_|Msg::Submit) class="hive-action hive-action__submit sb-touch-button">{ "Enter" }</div>
+                        <div onclick=self.link.callback(|_|Msg::Backspace) class="hive-action hive-action__delete sb-touch-button">{"Delete"}</div>
+                    </div>
                 </div>
             </div>
         }
