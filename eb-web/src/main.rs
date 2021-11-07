@@ -161,19 +161,20 @@ impl Component for SpellingBee {
             },
             None => html! { <div class="message-box" /> }
         };
-        let current_word = self
-            .current_word
-            .chars()
-            .map(|ch| {
-                if ch == self.center {
-                    html! { <span class="sb-input-bright"> { ch } </span> }
-                } else if  !self.letters.contains(&ch) {
-                        html! { <span class="sb-input-extra"> { ch } </span> }
-                } else {
-                    html! { <span> { ch } </span> }
-                }
-            })
-            .collect::<Html>();
+        // let current_word = self
+        //     .current_word
+        //     .chars()
+        //     .map(|ch| {
+        //         if ch == self.center {
+        //             html! { <span class="sb-input-bright"> { ch } </span> }
+        //         } else if  !self.letters.contains(&ch) {
+        //                 html! { <span class="sb-input-extra"> { ch } </span> }
+        //         } else {
+        //             html! { <span> { ch } </span> }
+        //         }
+        //     })
+        //     .collect::<Html>();
+        let current_word = self.current_word.clone();
         let words = self
             .found_words
             .iter()
@@ -203,7 +204,7 @@ impl Component for SpellingBee {
                     {{ message }}
                     <div class="sb-hive-input">
                         <span class="sb-hive-input-content non-empty" style="font-size: 1em;">
-                            <span class="">{{ current_word }}</span>
+                            <input type="text" value={current_word}/>
                         </span>
                     </div>
                     <div class="sb-hive">

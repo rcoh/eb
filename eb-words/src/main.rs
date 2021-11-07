@@ -1,5 +1,5 @@
 use structopt::StructOpt;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet};
 use serde::Serialize;
 
 #[derive(Debug, StructOpt)]
