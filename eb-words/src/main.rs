@@ -27,8 +27,10 @@ struct Output {
 }
 
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let opt = Opt::from_args();
+    /*
     let base_word = opt.base_word.chars().collect::<HashSet<_>>();
     let mut words = vec![];
     for obscurity in (10..=opt.max_obscurity).step_by(5) {
@@ -53,6 +55,8 @@ fn main() {
         words
     };
     println!("{}", serde_json::to_string(&output).unwrap());
+
+     */
 }
 
 #[cfg(test)]
