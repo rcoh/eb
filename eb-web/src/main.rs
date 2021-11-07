@@ -35,6 +35,7 @@ struct SpellingBee {
     handle: KeyListenerHandle,
     wordlist: HashSet<String>,
     local_storage: Storage,
+    message: Option<String>
 }
 
 impl SpellingBee {
@@ -52,6 +53,23 @@ fn key(c: char, letters: &[char]) -> String {
     }
     s
 }
+
+fn wrap(html: Html) -> Html {
+    html! {
+        <div class="pz-content">
+            <div class="pz-section" id="spelling-bee-container">
+                <div class="pz-row pz-game-title-bar">
+                    <div class="pz-module" id="portal-game-header">
+                        <h2><em class="pz-game-title">{ "Not Spelling Bee" }</em><span class="pz-game-date">{ "November 6, 2021" }</span></h2>
+                        <div class="pz-byline"><span class="pz-byline__text">{ "Not Edited by Anyone" }</span></div>
+                    </div>
+                </div>
+                <div id="pz-game-root" class="pz-game-field"> { html }</div>
+            </div>
+        </div>
+    }
+}
+
 
 impl Component for SpellingBee {
     type Message = Msg;
@@ -85,6 +103,7 @@ impl Component for SpellingBee {
             handle,
             wordlist: today.words.into_iter().collect(),
             local_storage,
+            message: None
         }
     }
 
@@ -100,6 +119,7 @@ impl Component for SpellingBee {
                     self.found_words
                         .push(std::mem::take(&mut self.current_word))
                 } else {
+                    self.message = Some("Not in wordlist".into());
                     self.current_word.clear();
                 }
                 self.local_storage
@@ -135,6 +155,12 @@ impl Component for SpellingBee {
                 </svg>
 
         };
+        let message = match &self.message {
+            Some(message) => html! {
+                <div class="message-box error-message">{message}</div>
+            },
+            None => html! { <div class="message-box" /> }
+        };
         let current_word = self
             .current_word
             .chars()
@@ -153,7 +179,7 @@ impl Component for SpellingBee {
             .iter()
             .map(|word| html! { <li>{word}</li> })
             .collect::<Html>();
-        html! {
+        let inner = html! {
             <div class="sb-content-box">
                 <div class="sb-status-box">
                     <div class="sb-wordlist-box">
@@ -174,6 +200,7 @@ impl Component for SpellingBee {
                     </div>
                 </div>
                 <div class="sb-controls">
+                    {{ message }}
                     <div class="sb-hive-input">
                         <span class="sb-hive-input-content non-empty" style="font-size: 1em;">
                             <span class="">{{ current_word }}</span>
@@ -191,7 +218,8 @@ impl Component for SpellingBee {
                     </div>
                 </div>
             </div>
-        }
+        };
+        wrap(inner)
     }
 }
 
