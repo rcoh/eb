@@ -115,12 +115,15 @@ impl Component for SpellingBee {
                 self.current_word.pop();
             }
             Msg::Submit => {
-                if self.wordlist.contains(&self.current_word) {
-                    self.found_words
-                        .push(std::mem::take(&mut self.current_word))
-                } else {
+                if !self.wordlist.contains(&self.current_word) {
                     self.message = Some("Not in wordlist".into());
                     self.current_word.clear();
+                } else if self.found_words.contains(&self.current_word){
+                    self.message = Some("Already found".into());
+                    self.current_word.clear();
+                } else {
+                    self.found_words
+                    .push(std::mem::take(&mut self.current_word))
                 }
                 self.local_storage
                     .set_item(&key(self.center, &self.letters), &self.found_words.join("\n")).unwrap();
