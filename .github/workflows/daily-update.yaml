@@ -1,8 +1,10 @@
 name: sync-latest-word
 on:
+  pull_request:
   schedule:
     - cron: '0 4 * * *'
   workflow_dispatch:
+
 jobs:
   sync-words:
     runs-on: ubuntu-latest
