@@ -26,6 +26,7 @@ jobs:
         run: cd eb-words && cargo run
       - name: push-code
         run: |
+          git fetch
           git add eb-web/word-lists
           git checkout main
           git -c "user.name=GitHub Action (wordlist update)" -c "user.email=wordlist-update@github.com" \
