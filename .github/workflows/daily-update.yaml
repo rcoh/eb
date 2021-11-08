@@ -1,8 +1,10 @@
 name: sync-latest-word
 on:
+  pull_request:
   schedule:
     - cron: '0 4 * * *'
   workflow_dispatch:
+
 jobs:
   sync-words:
     runs-on: ubuntu-latest
@@ -13,20 +15,21 @@ jobs:
         with:
           toolchain: stable
           default: true
-     - uses: actions/cache@v2
-       with:
-         path: |
-           ~/.cargo/registry
-           ~/.cargo/git
-           target
-         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: load-words
         run: cd eb-words && cargo run
       - name: push-code
         run: |
+          git fetch
           git add eb-web/word-lists
           git checkout main
           git -c "user.name=GitHub Action (wordlist update)" -c "user.email=wordlist-update@github.com" \
-                 commit -m "Update wordlist"
+                commit -m "Update wordlist"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git push -f origin "$(git rev-parse --abbrev-ref HEAD)"
