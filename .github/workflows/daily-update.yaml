@@ -24,7 +24,7 @@ jobs:
         run: cd eb-words && cargo run
       - name: push-code
         run: |
-          git add .
+          git add eb-web/word-lists
           git -c "user.name=GitHub Action (wordlist update)" -c "user.email=wordlist-update@github.com" \
                  commit -m "Update wordlist"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
