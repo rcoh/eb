@@ -3,9 +3,12 @@ name = "eb-words"
 version = "0.1.0"
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 structopt = "0.3.25"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+scraper = "0.12.0"
+reqwest = "0.11.6"
+time = { version = "0.3.4", features = ["macros"] }
+regex = "1.5.4"
