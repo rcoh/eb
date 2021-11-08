@@ -88,7 +88,8 @@ async fn main() -> Result<(), Box<dyn Error>>{
     };
     println!("{:?}", std::env::current_dir());
     let today = today.replace("/", "-");
-    std::fs::write(format!("../eb-web/word-lists/{}", today), serde_json::to_string(&output)?)?;
+    std::fs::write(format!("../eb-web/word-lists/{}.json", today), serde_json::to_string(&output)?)?;
+    std::fs::remove_file("../eb-web/word-lists/today.json")?;
     std::fs::write("../eb-web/word-lists/today.json", serde_json::to_string(&output)?)?;
     println!("done!");
     Ok(())
