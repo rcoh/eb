@@ -8,6 +8,7 @@ use yew::web_sys::Storage;
 use serde::Deserialize;
 use web_sys::HtmlElement;
 use wasm_bindgen::JsCast;
+use gloo_timers::callback::Timeout;
 
 
 enum Msg {
@@ -15,6 +16,7 @@ enum Msg {
     Backspace,
     Keyboard,
     Submit,
+    ClearMessage,
     Shuffle,
     OtherKeypress,
 }
@@ -24,6 +26,12 @@ struct Wordlist {
     center: char,
     outer: String,
     words: Vec<String>
+}
+
+impl Wordlist {
+    fn to_set(&self) -> HashSet<char> {
+        self.outer.chars().chain(Some(self.center)).collect()
+    }
 }
 
 const TODAY: &str = include_str!("../word-lists/today.json");
@@ -37,7 +45,7 @@ struct SpellingBee {
     found_words: Vec<String>,
     current_word: String,
     handle: KeyListenerHandle,
-    wordlist: HashSet<String>,
+    wordlist: Wordlist,
     local_storage: Storage,
     message: Option<String>,
 }
@@ -68,9 +76,22 @@ fn wrap(html: Html) -> Html {
                         <div class="pz-byline"><span class="pz-byline__text">{ "Not Edited by Anyone" }</span></div>
                     </div>
                 </div>
+                <div class="pz-row"><div class="pz-module pz-flex-row pz-game-toolbar-content" id="portal-game-toolbar"><div class="pz-toolbar-left"></div><div class="pz-toolbar-right"><span role="presentation" class="pz-toolbar-button pz-toolbar-button__yesterday">{ "Yesterday’s Answers" }</span><a class="pz-toolbar-button pz-toolbar-button__hints" href="https://www.nytimes.com/2021/11/08/crosswords/spelling-bee-forum.html" target="_blank" rel="noreferrer"><i class="pz-toolbar-icon external"></i></a><div class="pz-dropdown"><button type="button" class="pz-toolbar-button pz-dropdown__button"><span class="pz-dropdown__label"></span><span class="pz-dropdown__arrow"></span></button></div></div></div></div>
                 <div id="pz-game-root" class="pz-game-field"> { html }</div>
             </div>
         </div>
+    }
+}
+
+fn error(word_list: &Wordlist, guess: &str) -> String {
+    let guess = guess.chars().collect::<HashSet<_>>();
+    let rules = word_list.to_set();
+    if guess.difference(&rules).count() > 1 {
+        format!("Too many new letters")
+    } else if rules.difference(&guess).count() > 1 {
+        format!("All letters except one must be included. Missing: {:?}", rules.difference(&guess).collect::<Vec<_>>())
+    } else {
+        format!("Not in wordlist")
     }
 }
 
@@ -106,7 +127,7 @@ impl Component for SpellingBee {
             found_words,
             current_word: String::new(),
             handle,
-            wordlist: today.words.into_iter().collect(),
+            wordlist: today,
             local_storage,
             message: None,
         }
@@ -114,6 +135,7 @@ impl Component for SpellingBee {
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
+            Msg::ClearMessage => self.message = None,
             Msg::PushLetter(c) => {
                 self.current_word.push(c.to_ascii_lowercase());
             },
@@ -133,8 +155,12 @@ impl Component for SpellingBee {
                     .focus();
             }
             Msg::Submit => {
-                if !self.wordlist.contains(&self.current_word) {
-                    self.message = Some("Not in wordlist".into());
+                if !self.wordlist.words.contains(&self.current_word) {
+                    self.message = Some(error(&self.wordlist, self.current_word.as_str()));
+                    let link = self.link.clone();
+                    Timeout::new(1000, move || {
+                        link.send_message(Msg::ClearMessage)
+                    }).forget();
                     self.current_word.clear();
                 } else if self.found_words.contains(&self.current_word){
                     self.message = Some("Already found".into());
@@ -178,10 +204,13 @@ impl Component for SpellingBee {
         };
         let message = match &self.message {
             Some(message) => html! {
-                <div class="message-box error-message">{message}</div>
+                <div class="sb-message-box error-message">
+                    <div class="sb-message">{message}</div>
+                </div>
             },
-            None => html! { <div class="message-box" /> }
+            None => html! { <div class="sb-message-box" /> }
         };
+
         let current_word = self
             .current_word
             .chars()
@@ -201,9 +230,30 @@ impl Component for SpellingBee {
             .iter()
             .map(|word| html! { <li>{word}</li> })
             .collect::<Html>();
+        let valid_words = &self.wordlist.words;
+        let dots = (0..valid_words.len()).into_iter().map(|i| if i <= self.found_words.len() {
+            html! { <span class="sb-progress-dot completed" /> }
+        } else {
+            html! { <span class="sb-progress-dot" /> }
+        }).collect::<Html>();
+        let offset = (100.0 / valid_words.len() as f64) * self.found_words.len() as f64;
+        let progress = html! {
+            <span role="presentation">
+                <div class="sb-progress" title="Click to see today’s ranks">
+                  <h4 class="sb-progress-rank">{ "Amazing Human/Genius" }</h4>
+                  <div class="sb-progress-bar">
+                  <div class="sb-progress-line">
+                    <div class="sb-progress-dots">
+                        {dots}
+                    </div>
+            </div>
+            <div class="sb-progress-marker" style={ format!("left: {}%", offset)}><span class="sb-progress-value"> { self.found_words.len() }</span></div></div></div>
+            </span>
+        };
         let inner = html! {
             <div class="sb-content-box">
                 <div class="sb-status-box">
+                    <div class="sb-progress-box">{ progress }</div>
                     <div class="sb-wordlist-box">
                         <div class="sb-wordlist-heading">
                             <div class="sb-wordlist-summary">{ format!("You have found {} words", self.found_words.len()) }</div>
@@ -221,26 +271,28 @@ impl Component for SpellingBee {
                         </div>
                     </div>
                 </div>
-                <div class="sb-controls">
-                    {{ message }}
-                    <div class="sb-hive-input">
-                        <span class="sb-hive-input-content non-empty" style="font-size: 1em;">
-                            <span class="">{{ current_word }}</span>
-                            <input oninput=self.link.callback(|e:InputData|Msg::PushLetter(e.value.chars().next().unwrap())) type="text" style="opacity:0" id="hiddeninput" value=""/> 
-                        </span>
-                    </div>
-                    <div class="sb-hive">
-                        <div class="hive">
-                            {{ center }}
-                            {{ letters }}
+                <div class="sb-controls-box">
+                    <div class="sb-controls">
+                        {{ message }}
+                        <div class="sb-hive-input">
+                            <span class="sb-hive-input-content non-empty" style="font-size: 1em;">
+                                <span class="">{{ current_word }}</span>
+                            </span>
                         </div>
-                    </div>
-                    <div class="hive-actions">
-                        <div onclick=self.link.callback(|_|Msg::Submit) class="hive-action hive-action__submit sb-touch-button">{ "Enter" }</div>
-                        <div onclick=self.link.callback(|_|Msg::Backspace) class="hive-action hive-action__delete sb-touch-button">{"Delete"}</div>
-                        <div onclick=self.link.callback(|_|Msg::Keyboard) class="hive-action hive-action__keyboard sb-touch-button">{"Keyboard"}</div>
+                        <div class="sb-hive">
+                            <div class="hive">
+                                {{ center }}
+                                {{ letters }}
+                            </div>
                         </div>
+                        <div class="hive-actions">
+                            <div onclick=self.link.callback(|_|Msg::Submit) class="hive-action hive-action__submit sb-touch-button">{ "Enter" }</div>
+                            <div onclick=self.link.callback(|_|Msg::Backspace) class="hive-action hive-action__delete sb-touch-button">{"Delete"}</div>
+                            <div onclick=self.link.callback(|_|Msg::Keyboard) class="hive-action hive-action__keyboard sb-touch-button">{"Keyboard"}</div>
+                            </div>
+                    </div>
                 </div>
+            <input oninput=self.link.callback(|e:InputData|Msg::PushLetter(e.value.chars().next().unwrap())) type="text" style="opacity:0" id="hiddeninput" value=""/>
             </div>
         };
         wrap(inner)
