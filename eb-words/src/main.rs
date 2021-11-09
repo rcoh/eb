@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 
 #[derive(Debug, StructOpt)]
 struct Opt {
-    #[structopt(short = "o", long = "obscurity", default_value = "40")]
+    #[structopt(short = "o", long = "obscurity", default_value = "50")]
     max_obscurity: usize,
 
     #[structopt(short = "c", long = "center")]
