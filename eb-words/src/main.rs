@@ -41,7 +41,7 @@ async fn scrape(date: &str) -> (char, String) {
     let html_str = page.bytes().await.expect("failed to load data");
     let html = Html::parse_document(std::str::from_utf8(html_str.as_ref()).unwrap());
     let selector = Selector::parse("p.css-axufdj").expect("valid selector");
-    let re = Regex::new("<p .*?<strong.*?>([A-Z])</strong>([A-Z ]+)</p>").unwrap();
+    let re = Regex::new("<p .*?<strong.*?>([A-Z])[ ]*</strong>([A-Z ]+)</p>").unwrap();
     for element in html.select(&selector) {
         let html = element.html();
         if let Some(captures) = re.captures(&html) {
