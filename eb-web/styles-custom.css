@@ -52,8 +52,24 @@
 
 
 
-.enabled {
+.normal-letter {
  fill: #e6e6e6;
+}
+
+text.keyboard-letter.disabled-letter-text {
+ fill: rgba(0, 0, 0, 0.18);
+}
+
+.grid-letter {
+ fill: #ec971f;
+}
+
+.disabled-letter {
+ fill: rgba(215, 215, 215, 0.43);
+}
+
+.purple-letter {
+ fill: #9621f766;
 }
 
 .hidden {

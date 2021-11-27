@@ -9,9 +9,10 @@ use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 use yew::prelude::*;
 use yew::services::keyboard::KeyListenerHandle;
-use yew::services::KeyboardService;
+use yew::services::{ConsoleService, KeyboardService};
 use yew::web_sys;
 use yew::web_sys::Storage;
+use crate::web_sys::console::log;
 
 enum Msg {
     PushLetter(char),
@@ -57,6 +58,20 @@ struct SpellingBee {
 impl SpellingBee {
     fn callback_for<T>(&self, letter: char) -> Callback<T> {
         self.link.callback(move |_| Msg::PushLetter(letter))
+    }
+
+    fn grid(&self) -> HashSet<char> {
+        let mut letters: HashSet<char> = self.letters.iter().cloned().collect();
+        letters.insert(self.center);
+        letters
+    }
+
+    fn purple(&self) -> Option<char> {
+        let grid = self.grid();
+
+        let purple = self.current_word.chars().find(|letter|!grid.contains(letter));
+        ConsoleService::info(&format!("grid: {:?}, word: {}, pruple: {:?}", &grid, &self.current_word, purple));
+        purple
     }
 }
 
@@ -365,7 +380,7 @@ impl Component for SpellingBee {
                     <div onclick=self.link.callback(|_|Msg::Backspace) class="hive-action hive-action__delete sb-touch-button">{"Delete"}</div>
                 </div>
                 <div class="keyboard-footer">
-                    <Keyboard disabled={ HashSet::new() } purple={ None } ontype= { self.link.callback(keyboard_callback) } />
+                    <Keyboard purple={self.purple()} grid={self.grid()} ontype={ self.link.callback(keyboard_callback) } />
                 </div>
             </div>
         }
