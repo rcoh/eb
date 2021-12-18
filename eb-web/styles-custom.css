@@ -1,3 +1,77 @@
 .sb-input-extra {
  color:#9621f766
 }
+
+.container {
+ padding: 5px;
+}
+
+.wordlist-heading {
+ display: flex;
+ justify-content: space-around;
+}
+
+.keyboard-footer {
+ position: fixed;
+ bottom: 0;
+ width:100%;
+}
+
+.keyboard-container {
+ width: 100%;
+ height: calc(100vw / 10 * 3);
+}
+
+.hive-container {
+ max-width: 5in;
+}
+
+.keyboard-cell {
+ position: absolute;
+ width: calc(100% / 10);
+ cursor: pointer;
+}
+
+.sb-wordlist-box-custom {
+ height: 20%;
+}
+
+@media screen and (min-width: 12in) /* Desktop */ {
+ .keyboard-container {
+  display: none;
+ }
+}
+
+.keyboard-letter {
+ font-weight: 700;
+ font-size: 1.875em;
+ text-anchor: middle;
+ text-transform: uppercase;
+ pointer-events: none;
+}
+
+
+
+.normal-letter {
+ fill: #e6e6e6;
+}
+
+text.keyboard-letter.disabled-letter-text {
+ fill: rgba(0, 0, 0, 0.18);
+}
+
+.grid-letter {
+ fill: #ec971f;
+}
+
+.disabled-letter {
+ fill: rgba(215, 215, 215, 0.43);
+}
+
+.purple-letter {
+ fill: #9621f766;
+}
+
+.hidden {
+ display: none;
+}

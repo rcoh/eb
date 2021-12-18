@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 
 #[derive(Debug, StructOpt)]
 struct Opt {
-    #[structopt(short = "o", long = "obscurity", default_value = "40")]
+    #[structopt(short = "o", long = "obscurity", default_value = "50")]
     max_obscurity: usize,
 
     #[structopt(short = "c", long = "center")]
@@ -41,7 +41,7 @@ async fn scrape(date: &str) -> (char, String) {
     let html_str = page.bytes().await.expect("failed to load data");
     let html = Html::parse_document(std::str::from_utf8(html_str.as_ref()).unwrap());
     let selector = Selector::parse("p.css-axufdj").expect("valid selector");
-    let re = Regex::new("<p .*?<strong.*?>([A-Z])</strong>([A-Z ]+)</p>").unwrap();
+    let re = Regex::new("<p .*?<strong.*?>([A-Z])[ ]*</strong>([A-Z ]+)</p>").unwrap();
     for element in html.select(&selector) {
         let html = element.html();
         if let Some(captures) = re.captures(&html) {

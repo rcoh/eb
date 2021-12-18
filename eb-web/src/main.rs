@@ -1,18 +1,22 @@
+mod keyboard;
+
+use keyboard::Keyboard;
+use gloo_timers::callback::Timeout;
 use rand::prelude::SliceRandom;
+use serde::Deserialize;
 use std::collections::HashSet;
+use wasm_bindgen::JsCast;
+use web_sys::HtmlElement;
 use yew::prelude::*;
 use yew::services::keyboard::KeyListenerHandle;
-use yew::services::KeyboardService;
+use yew::services::{ConsoleService, KeyboardService};
 use yew::web_sys;
 use yew::web_sys::Storage;
-use serde::Deserialize;
-use web_sys::HtmlElement;
-use wasm_bindgen::JsCast;
-use gloo_timers::callback::Timeout;
-
+use crate::web_sys::console::log;
 
 enum Msg {
     PushLetter(char),
+    ToggleWords,
     Backspace,
     Keyboard,
     Submit,
@@ -25,7 +29,7 @@ enum Msg {
 struct Wordlist {
     center: char,
     outer: String,
-    words: Vec<String>
+    words: Vec<String>,
 }
 
 impl Wordlist {
@@ -48,6 +52,7 @@ struct SpellingBee {
     wordlist: Wordlist,
     local_storage: Storage,
     message: Option<String>,
+    wordlist_visible: bool,
 }
 
 impl SpellingBee {
@@ -55,6 +60,19 @@ impl SpellingBee {
         self.link.callback(move |_| Msg::PushLetter(letter))
     }
 
+    fn grid(&self) -> HashSet<char> {
+        let mut letters: HashSet<char> = self.letters.iter().cloned().collect();
+        letters.insert(self.center);
+        letters
+    }
+
+    fn purple(&self) -> Option<char> {
+        let grid = self.grid();
+
+        let purple = self.current_word.chars().find(|letter|!grid.contains(letter));
+        ConsoleService::info(&format!("grid: {:?}, word: {}, pruple: {:?}", &grid, &self.current_word, purple));
+        purple
+    }
 }
 
 fn key(c: char, letters: &[char]) -> String {
@@ -66,6 +84,7 @@ fn key(c: char, letters: &[char]) -> String {
     s
 }
 
+/*
 fn wrap(html: Html) -> Html {
     html! {
         <div class="pz-content">
@@ -81,7 +100,7 @@ fn wrap(html: Html) -> Html {
             </div>
         </div>
     }
-}
+}*/
 
 fn error(word_list: &Wordlist, guess: &str) -> String {
     let guess = guess.chars().collect::<HashSet<_>>();
@@ -89,12 +108,14 @@ fn error(word_list: &Wordlist, guess: &str) -> String {
     if guess.difference(&rules).count() > 1 {
         format!("Too many new letters")
     } else if rules.difference(&guess).count() > 1 {
-        format!("All letters except one must be included. Missing: {:?}", rules.difference(&guess).collect::<Vec<_>>())
+        format!(
+            "All letters except one must be included. Missing: {:?}",
+            rules.difference(&guess).collect::<Vec<_>>()
+        )
     } else {
         format!("Not in wordlist")
     }
 }
-
 
 impl Component for SpellingBee {
     type Message = Msg;
@@ -113,13 +134,16 @@ impl Component for SpellingBee {
             }),
         );
         let today: Wordlist = serde_json::from_str(TODAY).unwrap();
-        let letters: Vec<char> =  today.outer.chars().collect();
-        let words: String = local_storage.get_item(&key(today.center, &letters)).unwrap().unwrap_or_default();
+        let letters: Vec<char> = today.outer.chars().collect();
+        let words: String = local_storage
+            .get_item(&key(today.center, &letters))
+            .unwrap()
+            .unwrap_or_default();
         let found_words = words
             .lines()
             .map(|line| line.to_owned())
             .collect::<Vec<_>>();
-        
+
         Self {
             link,
             letters,
@@ -130,22 +154,27 @@ impl Component for SpellingBee {
             wordlist: today,
             local_storage,
             message: None,
+            wordlist_visible: false,
         }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
+            Msg::ToggleWords => { self.wordlist_visible = !self.wordlist_visible },
             Msg::ClearMessage => self.message = None,
             Msg::PushLetter(c) => {
                 self.current_word.push(c.to_ascii_lowercase());
-            },
+            }
             Msg::Shuffle => self.letters.shuffle(&mut rand::thread_rng()),
             Msg::Backspace => {
                 self.current_word.pop();
             }
             Msg::Keyboard => {
                 let window = web_sys::window();
-                let document = window.unwrap().document().expect("window should have a document");
+                let document = window
+                    .unwrap()
+                    .document()
+                    .expect("window should have a document");
                 let _ = document
                     .query_selector("#hiddeninput")
                     .unwrap()
@@ -158,19 +187,21 @@ impl Component for SpellingBee {
                 if !self.wordlist.words.contains(&self.current_word) {
                     self.message = Some(error(&self.wordlist, self.current_word.as_str()));
                     let link = self.link.clone();
-                    Timeout::new(1000, move || {
-                        link.send_message(Msg::ClearMessage)
-                    }).forget();
+                    Timeout::new(1000, move || link.send_message(Msg::ClearMessage)).forget();
                     self.current_word.clear();
-                } else if self.found_words.contains(&self.current_word){
+                } else if self.found_words.contains(&self.current_word) {
                     self.message = Some("Already found".into());
                     self.current_word.clear();
                 } else {
                     self.found_words
-                    .push(std::mem::take(&mut self.current_word))
+                        .push(std::mem::take(&mut self.current_word))
                 }
                 self.local_storage
-                    .set_item(&key(self.center, &self.letters), &self.found_words.join("\n")).unwrap();
+                    .set_item(
+                        &key(self.center, &self.letters),
+                        &self.found_words.join("\n"),
+                    )
+                    .unwrap();
             }
             Msg::OtherKeypress => (),
         };
@@ -183,7 +214,14 @@ impl Component for SpellingBee {
         false
     }
 
+
     fn view(&self) -> Html {
+        fn keyboard_callback(msg: keyboard::Msg) -> Msg {
+            match msg {
+                keyboard::Msg::Char(c) => Msg::PushLetter(c),
+                keyboard::Msg::Shuffle => Msg::Shuffle
+            }
+        }
         let letters = self.letters.iter().map(|letter| {
             html! {
                 <svg onclick=self.callback_for(*letter) class="hive-cell outer" viewBox="0 0 120 103.92304845413263">
@@ -208,7 +246,7 @@ impl Component for SpellingBee {
                     <div class="sb-message">{message}</div>
                 </div>
             },
-            None => html! { <div class="sb-message-box" /> }
+            None => html! { <div class="sb-message-box" /> },
         };
 
         let current_word = self
@@ -217,8 +255,8 @@ impl Component for SpellingBee {
             .map(|ch| {
                 if ch == self.center {
                     html! { <span class="sb-input-bright"> { ch } </span> }
-                } else if  !self.letters.contains(&ch) {
-                        html! { <span class="sb-input-extra"> { ch } </span> }
+                } else if !self.letters.contains(&ch) {
+                    html! { <span class="sb-input-extra"> { ch } </span> }
                 } else {
                     html! { <span> { ch } </span> }
                 }
@@ -231,11 +269,16 @@ impl Component for SpellingBee {
             .map(|word| html! { <li>{word}</li> })
             .collect::<Html>();
         let valid_words = &self.wordlist.words;
-        let dots = (0..valid_words.len()).into_iter().map(|i| if i <= self.found_words.len() {
-            html! { <span class="sb-progress-dot completed" /> }
-        } else {
-            html! { <span class="sb-progress-dot" /> }
-        }).collect::<Html>();
+        let dots = (0..valid_words.len())
+            .into_iter()
+            .map(|i| {
+                if i <= self.found_words.len() {
+                    html! { <span class="sb-progress-dot completed" /> }
+                } else {
+                    html! { <span class="sb-progress-dot" /> }
+                }
+            })
+            .collect::<Html>();
         let offset = (100.0 / valid_words.len() as f64) * self.found_words.len() as f64;
         let progress = html! {
             <span role="presentation">
@@ -250,7 +293,29 @@ impl Component for SpellingBee {
             <div class="sb-progress-marker" style={ format!("left: {}%", offset)}><span class="sb-progress-value"> { self.found_words.len() }</span></div></div></div>
             </span>
         };
-        let inner = html! {
+        let hidden = if self.wordlist_visible { "wordlist-drawer" } else { "wordlist-drawer hidden" };
+        let showhide_text = if self.wordlist_visible { "Hide" } else { "Show" };
+        let showhide = html! { <button onclick={self.link.callback(|_|Msg::ToggleWords)}>{ showhide_text }</button> };
+        let wordlist = html! {
+                    <div class="wordlist-box">
+                        <div class="wordlist-heading">
+                            <div class="wordlist-summary">{ format!("You have found {} words", self.found_words.len()) }</div>
+                            {showhide}
+                        </div>
+                        <div class={hidden}>
+                            <div class="wordlist-window">
+                                <div class="wordlist-pag">
+                                    <div class="sb-wordlist-scroll-anchor" style="left: 0%;"></div>
+                                    <ul class="sb-wordlist-items-pag single">
+                                        {words}
+                                    </ul>
+                                </div>
+                                <div class="sb-kebob"></div>
+                            </div>
+                        </div>
+                    </div>
+        };
+        /*let inner = html! {
             <div class="sb-content-box">
                 <div class="sb-status-box">
                     <div class="sb-progress-box">{ progress }</div>
@@ -289,13 +354,36 @@ impl Component for SpellingBee {
                             <div onclick=self.link.callback(|_|Msg::Submit) class="hive-action hive-action__submit sb-touch-button">{ "Enter" }</div>
                             <div onclick=self.link.callback(|_|Msg::Backspace) class="hive-action hive-action__delete sb-touch-button">{"Delete"}</div>
                             <div onclick=self.link.callback(|_|Msg::Keyboard) class="hive-action hive-action__keyboard sb-touch-button">{"Keyboard"}</div>
-                            </div>
+                        </div>
                     </div>
                 </div>
-            <input oninput=self.link.callback(|e:InputData|Msg::PushLetter(e.value.chars().next().unwrap())) type="text" style="opacity:0" id="hiddeninput" value=""/>
+                <Keyboard disabled={ HashSet::new() } purple={ None } ontype= { self.link.callback(keyboard_callback) } />
             </div>
         };
-        wrap(inner)
+        wrap(inner)*/
+        html! {
+            <div class="container">
+                { wordlist }
+                <div class="sb-hive-input">
+                    <span class="sb-hive-input-content non-empty" style="font-size: 1em;">
+                        <span class="">{{ current_word }}</span>
+                    </span>
+                </div>
+                <div class="sb-hive hive-container">
+                    <div class="hive">
+                        {{ center }}
+                        {{ letters }}
+                    </div>
+                </div>
+                <div class="hive-actions">
+                    <div onclick=self.link.callback(|_|Msg::Submit) class="hive-action hive-action__submit sb-touch-button">{ "Enter" }</div>
+                    <div onclick=self.link.callback(|_|Msg::Backspace) class="hive-action hive-action__delete sb-touch-button">{"Delete"}</div>
+                </div>
+                <div class="keyboard-footer">
+                    <Keyboard purple={self.purple()} grid={self.grid()} ontype={ self.link.callback(keyboard_callback) } />
+                </div>
+            </div>
+        }
     }
 }
 
