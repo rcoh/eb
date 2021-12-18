@@ -21,9 +21,9 @@ struct Opt {
 
 }
 
-fn is_emily_word_for(sb_word: &HashSet<char>, possible: impl Iterator<Item=char>) -> bool {
+fn is_emily_word_for(sb_word: &HashSet<char>, center_letter: char, possible: impl Iterator<Item=char>) -> bool {
     let possible = possible.collect::<HashSet::<_>>();
-    sb_word.difference(&possible).count() == 1 && possible.difference(&sb_word).count() == 1
+    possible.contains(&center_letter) && sb_word.difference(&possible).count() == 1 && possible.difference(&sb_word).count() == 1
 }
 
 #[derive(Serialize)]
@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn Error>>{
                         continue;
                     }
                     let chars = word.trim().chars().filter(|c|c.is_alphabetic());
-                    if is_emily_word_for(&base_word, chars) {
+                    if is_emily_word_for(&base_word, center, chars) {
                         eprintln!("{}", word);
                         words.push(word.to_string());
                     }
@@ -102,8 +102,8 @@ mod test {
     #[test]
     fn emily_words() {
         let base = "gamecock".chars().collect();
-        assert!(is_emily_word_for(&base, "lockage"));
-        assert!(!is_emily_word_for(&base, "bloop"))
+        assert!(is_emily_word_for(&base, 'c', "lockage".chars()));
+        assert!(!is_emily_word_for(&base, 'c', "bloop".chars()))
     }
 
 }
